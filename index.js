@@ -10,6 +10,27 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 app.use(express.json())
+
+app.get('/health/live', (_req, res) => {
+  res.status(200).json({
+    status: 'alive'
+  })
+})
+
+app.get('/health/ready', async (_req, res) => {
+  try {
+    await sequelize.authenticate()
+
+    res.status(200).json({
+      status: 'ready'
+    })
+  } catch (_error) {
+    res.status(503).json({
+      status: 'not ready'
+    })
+  }
+})
+
 app.use('/api/users', usersRouter)
 
 const server = app.listen(PORT, () => {
