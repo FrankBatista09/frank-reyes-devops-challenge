@@ -5,10 +5,14 @@ on:
     branches: [main]
     paths-ignore:
       - "terraform/**"
+      - "**/*.md"
+      - "images/**"
   pull_request:
     branches: [main]
     paths-ignore:
       - "terraform/**"
+      - "**/*.md"
+      - "images/**"
   workflow_dispatch:
 
 concurrency:

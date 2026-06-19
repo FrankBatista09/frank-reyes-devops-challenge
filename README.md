@@ -6,19 +6,20 @@ Este documento es la entrega técnica: explica la arquitectura, las buenas prác
 
 ---
 
-## Tabla de cumplimiento del reto
+## Checklist del reto
 
-| Requerimiento | Estado | Dónde |
-|---|:---:|---|
-| Dockerfile multistage, non-root, healthcheck, expose, entrypoint | ✅ | [`Dockerfile`](Dockerfile) |
-| Manifiestos de Kubernetes completos (probes, HPA, etc.) | ✅ | [`k8s/`](k8s/) |
-| Pipeline CI/CD con todos los stages | ✅ | [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml) |
-| Análisis estático + cobertura + escaneo de vulnerabilidades | ✅ | SonarCloud + Jest coverage + Trivy |
-| Manejo seguro de secretos (sin credenciales estáticas) | ✅ | OIDC federado con Azure |
-| IaC modular con Terraform | ✅ | [`terraform/`](terraform/) |
-| TLS/SSL + dominio custom | ✅ | cert-manager + Let's Encrypt + Azure DNS |
-| Documentación con diagramas | ✅ | Este README |
-| Escalamiento horizontal (HPA) | ✅ | [`k8s/base/hpa.yaml`](k8s/base/hpa.yaml) |
+| # | Entregable | Estado | Referencia |
+|---|---|:---:|---|
+| 1 | Imagen Docker publicada en un registry (ACR) | ✅ | [`Dockerfile`](Dockerfile) · [`terraform/modules/acr/`](terraform/modules/acr/) |
+| 2 | Pipeline CI/CD (build → test → scan → push → deploy) | ✅ | [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml) |
+| 3 | Kubernetes: mínimo 2 réplicas | ✅ | [`k8s/base/deployment.yaml`](k8s/base/deployment.yaml) |
+| 4 | Kubernetes: Horizontal Pod Autoscaler (HPA) | ✅ | [`k8s/base/hpa.yaml`](k8s/base/hpa.yaml) |
+| 5 | IaC con Terraform (modular) | ✅ | [`terraform/`](terraform/) |
+| 6 | Pruebas unitarias y de cobertura | ✅ | Jest · `npm run test:coverage` |
+| 7 | Análisis de calidad de código | ✅ | ESLint + SonarCloud (opcional) |
+| 8 | Escaneo de vulnerabilidades de imagen | ✅ | Trivy (SARIF → pestaña Security) |
+| 9 | TLS/SSL con dominio custom | ✅ | cert-manager + Let's Encrypt + Cloudflare DNS |
+| 10 | Documentación con diagramas | ✅ | Este README (Mermaid) |
 
 ---
 
@@ -268,9 +269,56 @@ npm run start         # http://localhost:8000/api/users
 
 ---
 
+## Probar los endpoints
+
+URL base: `https://devsu-demo.andujaronline.uk`
+
+### En el navegador (GET)
+
+| Propósito | URL |
+|---|---|
+| Liveness (¿el proceso está vivo?) | `https://devsu-demo.andujaronline.uk/health/live` |
+| Readiness (¿la BD está lista?) | `https://devsu-demo.andujaronline.uk/health/ready` |
+| Listar todos los usuarios | `https://devsu-demo.andujaronline.uk/api/users` |
+| Obtener usuario por ID | `https://devsu-demo.andujaronline.uk/api/users/1` |
+
+### Desde la consola (POST)
+
+```bash
+# Crear un usuario
+curl -s -X POST https://devsu-demo.andujaronline.uk/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"dni":"1234567890","name":"Frank Batista"}' | jq
+
+# Luego consultar el resultado en el navegador:
+# https://devsu-demo.andujaronline.uk/api/users
+```
+
+---
+
 ## Evidencia
 
-> Se adjuntará evidencia de la API activa (capturas de `POST`/`GET`, certificado TLS válido en el navegador y tiempos de pipeline) una vez que el dominio resuelva a la IP del ingress.
+> **Nota sobre disponibilidad del clúster:** el clúster AKS se mantiene encendido únicamente de **9:00 a.m. a 6:00 p.m. (hora RD, AST UTC−4)** por razones de costo. Si al momento de la revisión el clúster está apagado, las capturas a continuación muestran la API funcionando en vivo detrás de `https://devsu-demo.andujaronline.uk` con TLS válido emitido por Let's Encrypt.
+
+### `GET /health/live`
+
+![Health liveness endpoint](images/health-live.png)
+
+### `GET /health/ready`
+
+![Health readiness endpoint](images/health-ready.png)
+
+### `GET /api/users` — listado de usuarios
+
+![Listado de usuarios](images/api-users.png)
+
+### `POST /api/users` — crear usuario
+
+![Crear usuario POST](images/api-post-user.png)
+
+### `GET /api/users/1` — obtener usuario por ID
+
+![Obtener usuario por ID](images/api-user-1.png)
 
 ---
 
