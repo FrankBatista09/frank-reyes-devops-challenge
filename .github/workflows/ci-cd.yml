@@ -1,0 +1,231 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "18"
+  IMAGE_NAME: devsu-demo-devops-nodejs
+
+permissions:
+  contents: read
+  security-events: write
+  id-token: write
+
+jobs:
+  build-test:
+    name: Build, Lint, Test & Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7
+
+  code-quality:
+    name: SonarCloud (optional)
+    runs-on: ubuntu-latest
+    needs: build-test
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - name: Checkout
+        if: env.SONAR_TOKEN != ''
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        if: env.SONAR_TOKEN != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Generate coverage for Sonar
+        if: env.SONAR_TOKEN != ''
+        run: |
+          npm ci
+          npm run test:coverage
+
+      - name: SonarCloud scan
+        if: env.SONAR_TOKEN != ''
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  docker:
+    name: Docker Build, Scan & Push
+    runs-on: ubuntu-latest
+    needs: build-test
+    outputs:
+      image_ref: ${{ steps.imageref.outputs.image_ref }}
+    env:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ACR_NAME: ${{ vars.ACR_NAME }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image for scan
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trivy vulnerability scan (SARIF)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:scan
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
+      - name: Upload Trivy results to Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Trivy human-readable summary
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:scan
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
+      - name: Azure login
+        if: github.event_name != 'pull_request' && env.AZURE_CLIENT_ID != ''
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR login
+        if: github.event_name != 'pull_request' && env.AZURE_CLIENT_ID != ''
+        run: az acr login --name "${ACR_NAME}"
+
+      - name: Push image
+        id: push
+        if: github.event_name != 'pull_request' && env.AZURE_CLIENT_ID != ''
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+            ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Export image ref
+        id: imageref
+        if: github.event_name != 'pull_request' && env.AZURE_CLIENT_ID != ''
+        run: echo "image_ref=${ACR_NAME}.azurecr.io/${IMAGE_NAME}@${{ steps.push.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+  validate-k8s:
+    name: Validate K8s Manifests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install kustomize & kubeconform
+        run: |
+          curl -sLo kustomize.tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz
+          tar -xzf kustomize.tar.gz && sudo mv kustomize /usr/local/bin/
+          curl -sLo kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+          tar -xzf kubeconform.tar.gz && sudo mv kubeconform /usr/local/bin/
+
+      - name: Render & validate overlays
+        run: |
+          for overlay in local prod; do
+            echo "::group::Validating overlay: $overlay"
+            kustomize build "k8s/overlays/$overlay" | \
+              kubeconform -strict -summary -ignore-missing-schemas \
+                -kubernetes-version 1.35.0
+            echo "::endgroup::"
+          done
+
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: [docker, validate-k8s]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    env:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+    steps:
+      - name: Checkout
+        if: env.AZURE_CLIENT_ID != ''
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        if: env.AZURE_CLIENT_ID != ''
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup kubectl & kustomize
+        if: env.AZURE_CLIENT_ID != ''
+        run: |
+          curl -sLo kustomize.tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz
+          tar -xzf kustomize.tar.gz && sudo mv kustomize /usr/local/bin/
+          curl -sLO "https://dl.k8s.io/release/v1.35.0/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+
+      - name: Get AKS credentials
+        if: env.AZURE_CLIENT_ID != ''
+        run: az aks get-credentials --resource-group "${{ vars.AKS_RESOURCE_GROUP }}" --name "${{ vars.AKS_CLUSTER_NAME }}" --overwrite-existing
+
+      - name: Pin image to the built digest
+        if: env.AZURE_CLIENT_ID != ''
+        working-directory: k8s/overlays/prod
+        run: kustomize edit set image devsu-demo-devops-nodejs=${{ needs.docker.outputs.image_ref }}
+
+      - name: Apply manifests
+        if: env.AZURE_CLIENT_ID != ''
+        run: kubectl apply -k k8s/overlays/prod
+
+      - name: Wait for rollout
+        if: env.AZURE_CLIENT_ID != ''
+        run: kubectl -n devsu-demo rollout status deployment/devsu-demo --timeout=180s

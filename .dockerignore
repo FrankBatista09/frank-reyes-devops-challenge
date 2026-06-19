@@ -1,0 +1,31 @@
+# Dependencies & build artifacts (reinstalled inside the image)
+node_modules
+coverage
+*.log
+
+# Local SQLite database
+dev.sqlite
+
+# Secrets / local env (provided via ConfigMap/Secret at runtime instead)
+.env
+.env.*
+
+# VCS & CI
+.git
+.gitignore
+.github
+
+# DevOps assets not needed inside the app image
+k8s
+terraform
+docs
+*.md
+LICENSE
+
+# Docker / editor
+Dockerfile
+.dockerignore
+docker-compose.yml
+.vscode
+.idea
+.eslintcache
