@@ -8,7 +8,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: devsu-demo.example.com
+    - host: devsu-demo.andujaronline.uk
       http:
         paths:
           - path: /api
@@ -20,5 +20,5 @@ spec:
                   number: 80
   tls:
     - hosts:
-        - devsu-demo.example.com
+        - devsu-demo.andujaronline.uk
       secretName: devsu-demo-tls
