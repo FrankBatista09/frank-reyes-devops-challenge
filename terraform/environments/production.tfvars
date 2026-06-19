@@ -1,8 +1,8 @@
 prefix             = "devsu-demo"
 location           = "eastus2"
-kubernetes_version = "1.30"
+kubernetes_version = "1.35"
 
-node_size      = "Standard_D2s_v5"
+node_size      = "Standard_D2s_v3"
 node_min_count = 2
 node_max_count = 5
 
