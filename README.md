@@ -136,7 +136,6 @@ IaC modular en [`terraform/`](terraform/) — 7 módulos reutilizables y paramet
 | `aks` | Cluster AKS (CNI Overlay, Calico, autoscaler, OIDC, OMS agent) |
 | `monitoring` | Log Analytics + Container Insights |
 | `k8s-addons` | Helm: ingress-nginx + cert-manager |
-| `dns` | Azure DNS zone + record A (hostname público del app) |
 
 - **Estado remoto** en Azure Storage (`backend.tfvars`), parametrización por `environments/production.tfvars`.
 - **IP pública estática** Terraform-managed asignada al ingress → el record DNS nunca apunta a una IP que pueda cambiar.
@@ -182,7 +181,7 @@ La **consistencia total entre réplicas** (que cualquier Pod devuelva siempre el
 
 - **ingress-nginx** expone el servicio vía LoadBalancer con **IP pública estática** (Terraform-managed, en el node resource group).
 - **cert-manager + Let's Encrypt** (`ClusterIssuer` en [`k8s/addons/cluster-issuer.yaml`](k8s/addons/cluster-issuer.yaml)) emiten el certificado TLS automáticamente vía challenge HTTP-01.
-- **Dominio custom**: un record **A** (`devsu-demo.andujaronline.uk`) apunta a la IP estática del ingress, en modo *DNS only* para permitir el challenge HTTP-01. El módulo `dns` de Terraform también puede crear la zona y el record en Azure DNS como alternativa IaC.
+- **Dominio custom**: un record **A** (`devsu-demo.andujaronline.uk`) gestionado en **Cloudflare** (en modo *DNS only*) apunta a la IP estática del ingress, lo que permite el challenge HTTP-01 de Let's Encrypt.
 
 > Una vez que el dominio resuelve a la IP del ingress, cert-manager emite el certificado y la API queda disponible en `https://devsu-demo.andujaronline.uk/api/users` con candado válido.
 

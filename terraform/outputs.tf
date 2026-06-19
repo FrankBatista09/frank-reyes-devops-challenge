@@ -38,16 +38,6 @@ output "get_credentials_command" {
   value       = "az aks get-credentials --resource-group ${azurerm_resource_group.this.name} --name ${module.aks.name}"
 }
 
-output "dns_name_servers" {
-  description = "Delegate these name servers at your domain registrar."
-  value       = module.dns.name_servers
-}
-
-output "app_fqdn" {
-  description = "Public hostname of the app (A record)."
-  value       = module.dns.app_fqdn
-}
-
 output "ingress_public_ip" {
   description = "Static public IP bound to the ingress LoadBalancer."
   value       = azurerm_public_ip.ingress.ip_address

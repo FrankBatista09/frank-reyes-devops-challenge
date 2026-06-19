@@ -21,8 +21,7 @@ terraform/
     ├── acr/               # Azure Container Registry (admin off, solo AAD)
     ├── aks/               # AKS: Azure CNI Overlay, Calico (NetworkPolicy), autoscaler, OMS agent
     ├── monitoring/        # Log Analytics workspace + Container Insights
-    ├── k8s-addons/        # Helm: ingress-nginx + cert-manager
-    └── dns/               # Azure DNS zone + A record (hostname público del app)
+    └── k8s-addons/        # Helm: ingress-nginx + cert-manager
 ```
 
 ## Módulos
@@ -35,7 +34,6 @@ terraform/
 | `aks` | Kubernetes cluster | CNI Overlay, `network_policy = calico` (habilita NetworkPolicy), autoscaler 2→5, OIDC/Workload Identity, OMS agent |
 | `monitoring` | Log Analytics + ContainerInsights | Métricas/logs del clúster |
 | `k8s-addons` | Helm `ingress-nginx`, `cert-manager` | Controlador de ingress (LoadBalancer) + emisión TLS |
-| `dns` | DNS zone + A record | Hostname público del app; delega los NS en tu registrador |
 
 El role assignment **AcrPull** (kubelet identity del AKS → ACR) se crea en `main.tf`
 para que el clúster jale la imagen sin `imagePullSecrets`.

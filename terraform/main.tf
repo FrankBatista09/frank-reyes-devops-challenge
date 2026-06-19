@@ -90,12 +90,3 @@ module "k8s_addons" {
 
   depends_on = [module.aks]
 }
-
-module "dns" {
-  source              = "./modules/dns"
-  resource_group_name = azurerm_resource_group.this.name
-  zone_name           = var.dns_zone_name
-  record_name         = var.dns_record_name
-  ingress_ip          = azurerm_public_ip.ingress.ip_address
-  tags                = var.tags
-}

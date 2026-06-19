@@ -3,8 +3,12 @@ name: CI/CD
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "terraform/**"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "terraform/**"
   workflow_dispatch:
 
 concurrency:
@@ -221,6 +225,10 @@ jobs:
         if: env.AZURE_CLIENT_ID != ''
         working-directory: k8s/overlays/prod
         run: kustomize edit set image devsu-demo-devops-nodejs=${{ needs.docker.outputs.image_ref }}
+
+      - name: Apply cert-manager ClusterIssuer
+        if: env.AZURE_CLIENT_ID != ''
+        run: kubectl apply -f k8s/addons/cluster-issuer.yaml
 
       - name: Apply manifests
         if: env.AZURE_CLIENT_ID != ''
