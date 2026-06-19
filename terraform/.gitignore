@@ -1,0 +1,15 @@
+# Local Terraform state & artifacts
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+.terraform.lock.hcl
+tfplan
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Never commit a tfvars that holds secrets (our committed tfvars are non-secret config)
+*.auto.tfvars
+secrets.tfvars
