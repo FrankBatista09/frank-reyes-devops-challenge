@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "lint": "eslint . --ext .js",
+    "lint": "eslint .",
     "test": "jest",
     "test:coverage": "jest --coverage"
   },
