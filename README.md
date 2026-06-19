@@ -320,8 +320,3 @@ curl -s -X POST https://devsu-demo.andujaronline.uk/api/users \
 
 ![Obtener usuario por ID](images/api-user-1.png)
 
----
-
-## Licencia
-
-Copyright © 2023 Devsu. All rights reserved.
