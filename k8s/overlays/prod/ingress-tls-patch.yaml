@@ -11,7 +11,7 @@ spec:
     - host: devsu-demo.andujaronline.uk
       http:
         paths:
-          - path: /api
+          - path: /
             pathType: Prefix
             backend:
               service:
