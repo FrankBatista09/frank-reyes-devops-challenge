@@ -94,6 +94,17 @@ variable "cert_manager_version" {
   default     = "v1.15.3"
 }
 
+variable "dns_zone_name" {
+  description = "DNS zone (registered domain) hosted in Azure DNS."
+  type        = string
+}
+
+variable "dns_record_name" {
+  description = "A record name (subdomain) for the app; \"@\" for the apex."
+  type        = string
+  default     = "app"
+}
+
 variable "tags" {
   description = "Tags applied to all resources."
   type        = map(string)

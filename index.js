@@ -3,7 +3,7 @@ import { usersRouter } from "./users/router.js"
 import express from 'express'
 
 const app = express()
-const PORT = 8000
+const PORT = process.env.PORT || 8000
 
 if (process.env.NODE_ENV !== 'test') {
   sequelize.sync({ force: true }).then(() => console.log('db is ready'))

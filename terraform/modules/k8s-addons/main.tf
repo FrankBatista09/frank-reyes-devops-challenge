@@ -20,6 +20,11 @@ resource "helm_release" "ingress_nginx" {
   }
 
   set {
+    name  = "controller.service.loadBalancerIP"
+    value = var.load_balancer_ip
+  }
+
+  set {
     name  = "controller.metrics.enabled"
     value = "true"
   }

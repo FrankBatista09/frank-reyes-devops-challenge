@@ -18,6 +18,9 @@ log_retention_in_days = 30
 ingress_nginx_version = "4.11.3"
 cert_manager_version  = "v1.15.3"
 
+dns_zone_name   = "devfb.dev"
+dns_record_name = "devsu-demo"
+
 tags = {
   project     = "devsu-demo-devops-nodejs"
   environment = "production"
